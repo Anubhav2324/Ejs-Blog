@@ -3,6 +3,7 @@
 const express = require("express");
 const ejs = require("ejs");
 const _ = require('lodash');
+const mongoose = require('mongoose');
 
 const homeStartingContent = "Lacus vel facilisis volutpat est velit egestas dui id ornare. Semper auctor neque vitae tempus quam. Sit amet cursus sit amet dictum sit amet justo. Viverra tellus in hac habitasse. Imperdiet proin fermentum leo vel orci porta. Donec ultrices tincidunt arcu non sodales neque sodales ut. Mattis molestie a iaculis at erat pellentesque adipiscing. Magnis dis parturient montes nascetur ridiculus mus mauris vitae ultricies. Adipiscing elit ut aliquam purus sit amet luctus venenatis lectus. Ultrices vitae auctor eu augue ut lectus arcu bibendum at. Odio euismod lacinia at quis risus sed vulputate odio ut. Cursus mattis molestie a iaculis at erat pellentesque adipiscing.";
 const aboutStartingContent = "Hac habitasse platea dictumst vestibulum rhoncus est pellentesque. Dictumst vestibulum rhoncus est pellentesque elit ullamcorper. Non diam phasellus vestibulum lorem sed. Platea dictumst quisque sagittis purus sit. Egestas sed sed risus pretium quam vulputate dignissim suspendisse. Mauris in aliquam sem fringilla. Semper risus in hendrerit gravida rutrum quisque non tellus orci. Amet massa vitae tortor condimentum lacinia quis vel eros. Enim ut tellus elementum sagittis vitae. Mauris ultrices eros in cursus turpis massa tincidunt dui.";
@@ -10,15 +11,27 @@ const contactStartingContent = "Scelerisque eleifend donec pretium vulputate sap
 
 const app = express();
 
-let blogs = [];
 
 app.set('view engine', 'ejs');
 
 app.use(express.urlencoded({extended: true}));
 app.use(express.static("public"));
 
+mongoose.connect("mongodb://localhost:27017/blogDB");
+
+const blogSchema = new mongoose.Schema({
+  title:String,
+  content:String
+});
+
+const Blog = mongoose.model("blog",blogSchema);
+
 app.get('/',(req,res)=>{
-  res.render('home',{homeContent: homeStartingContent,blogList:blogs});
+  Blog.find((err,blogs)=>{
+    if(!err){
+      res.render('home',{homeContent: homeStartingContent,blogList:blogs});
+    }
+  })
 })
 app.get('/about',(req,res)=>{
   res.render('about',{aboutContent: aboutStartingContent});
@@ -32,26 +45,29 @@ app.get('/compose',(req,res)=>{
   res.render('compose');
 })
 
-app.get('/blogs/:blogName',(req,res)=>{
-  let blogName= _.lowerCase(req.params.blogName);
-  blogs.forEach((item)=>{
-    if(_.lowerCase(item.title)===blogName){
+app.get('/blogs/:blogID',(req,res)=>{
+  let blogID = req.params.blogID
+  
+  Blog.findOne({_id:blogID},(err,foundItem)=>{
+    if(!err){
       res.render('post',
-      {blogTitle:item.title,
-        blogContent:item.content
-      })
-    } 
-  })
-})
+      {blogTitle:foundItem.title,
+        blogContent:foundItem.content
+      });
+    }
+  });
+});
 
 app.post('/compose',(req,res)=>{
-  const blog ={
+  const post = new Blog({
     title: req.body.blogTitle,
     content: req.body.blogPost
-  };
-  blogs.push(blog)
-
-  res.redirect('/');
+  });
+  post.save((err)=>{
+    if(!err){
+      res.redirect('/');
+    }
+  });
 })
 
 
